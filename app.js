@@ -46,6 +46,131 @@ app.get('/api/prices', (req, res) => {
     });
 });
 
+// API 路由：根據日期範圍獲取市場價格數據
+app.get('/api/prices/date/:date', (req, res) => {
+    const date = req.params.date;
+    db.all('SELECT * FROM market_prices WHERE date = ?', [date], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// API 路由：根據日期範圍查詢市場價格數據
+app.get('/api/prices/range', (req, res) => {
+    const startDate = req.query.start;
+    const endDate = req.query.end;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({
+            error: '必須提供起始和結束日期'
+        });
+    }
+
+    const sql = `
+        SELECT * FROM market_prices 
+        WHERE date >= ? AND date <= ? 
+        ORDER BY date ASC, market ASC
+    `;
+
+    db.all(sql, [startDate, endDate], (err, rows) => {
+        if (err) {
+            console.error('查詢數據時發生錯誤:', err.message);
+            return res.status(500).json({
+                error: '內部伺服器錯誤',
+                message: err.message
+            });
+        }
+        res.json(rows);
+    });
+});
+
+// API 路由：插入新的市場價格數據
+app.post('/api/insert', (req, res) => {
+    const {
+        date,
+        market,
+        product,
+        high_price,
+        medium_price,
+        low_price,
+        average_price,
+        trading_volume
+    } = req.body;
+
+    const created_at = new Date().toISOString();
+
+    const sql = `
+        INSERT INTO market_prices (
+            date,
+            market,
+            product,
+            high_price,
+            medium_price,
+            low_price,
+            average_price,
+            trading_volume,
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.run(sql, [
+        date,
+        market,
+        product,
+        high_price,
+        medium_price,
+        low_price,
+        average_price,
+        trading_volume,
+        created_at
+    ], function(err) {
+        if (err) {
+            console.error('插入數據時發生錯誤:', err.message);
+            return res.status(500).json({
+                error: '內部伺服器錯誤',
+                message: err.message
+            });
+        }
+
+        res.status(201).json({
+            message: '數據插入成功',
+            id: this.lastID
+        });
+    });
+});
+
+// API 路由：查詢特定日期的市場價格數據
+app.get('/api', (req, res) => {
+    const date = req.query.date;
+
+    if (!date) {
+        return res.status(400).json({
+            error: '必須提供日期參數',
+            message: '請使用 /api?date=YYYY-MM-DD 格式進行查詢'
+        });
+    }
+
+    const sql = 'SELECT * FROM market_prices WHERE date = ? ORDER BY market';
+
+    db.all(sql, [date], (err, rows) => {
+        if (err) {
+            console.error('查詢數據時發生錯誤:', err.message);
+            return res.status(500).json({
+                error: '內部伺服器錯誤',
+                message: err.message
+            });
+        }
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                message: '找不到指定日期的數據'
+            });
+        }
+
+        res.json(rows);
+    });
+});
+
 // 在 module.exports 之前添加數據庫關閉處理
 process.on('SIGINT', () => {
     db.close((err) => {
