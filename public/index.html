@@ -78,24 +78,6 @@
 
             <button onclick="queryPrices()" class="search-button">查詢</button>
         </div>
-
-        <div id="result">
-            <table id="dataTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>日期</th>
-                        <th>市場</th>
-                        <th>產品</th>
-                        <th>最高價</th>
-                        <th>中間價</th>
-                        <th>最低價</th>
-                        <th>平均價</th>
-                        <th>交易量</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-        </div>
     </div>
 
     <div class="container">
@@ -142,6 +124,25 @@
             </div>
 
             <button onclick="submitData()" class="submit-button">提交資料</button>
+        </div>
+
+        <!-- 將查詢結果表格移到這裡 -->
+        <div id="result">
+            <table id="dataTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>市場</th>
+                        <th>產品</th>
+                        <th>最高價</th>
+                        <th>中間價</th>
+                        <th>最低價</th>
+                        <th>平均價</th>
+                        <th>交易量</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
         </div>
     </div>
 
