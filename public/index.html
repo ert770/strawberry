@@ -2,72 +2,12 @@
 <html>
 <head>
     <title>市場價格查詢</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/stylesheets/style.css">
-    <style>
-        .container {
-            margin: 20px;
-        }
-        .search-container {
-            margin-bottom: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f4f4f4;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .date-input {
-            margin-right: 10px;
-        }
-        .form-container {
-            max-width: 500px;
-            margin: 20px 0;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: inline-block;
-            width: 100px;
-            margin-right: 10px;
-        }
-        .form-group input {
-            padding: 5px;
-            width: 200px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .submit-button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .submit-button:hover {
-            background-color: #45a049;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
-        <h1>市場價格查詢系統</h1>
+        <h1>草莓市價查詢系統</h1>
 
         <div class="search-container">
             <label for="startDate">起始日期：</label>
@@ -128,6 +68,11 @@
 
         <!-- 將查詢結果表格移到這裡 -->
         <div id="result">
+            <!-- 图表容器移到表格上方 -->
+            <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
+                <canvas id="priceChart"></canvas>
+            </div>
+
             <table id="dataTable" style="display: none;">
                 <thead>
                     <tr>
@@ -144,136 +89,245 @@
                 <tbody id="tableBody"></tbody>
             </table>
         </div>
-    </div>
+        <!-- 引入 Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            // 初始化日期選擇器
+            function initializeDates() {
+                const today = new Date();
+                const lastMonth = new Date();
+                lastMonth.setMonth(today.getMonth() - 1);
 
-    <script>
-        // 初始化日期選擇器
-        function initializeDates() {
-            const today = new Date();
-            const lastMonth = new Date();
-            lastMonth.setMonth(today.getMonth() - 1);
-
-            document.getElementById('startDate').valueAsDate = lastMonth;
-            document.getElementById('endDate').valueAsDate = today;
-            document.getElementById('inputDate').valueAsDate = today;
-        }
-
-        // 格式化數字顯示
-        function formatNumber(num) {
-            return num ? num.toLocaleString() : '-';
-        }
-
-        // 查詢價格數據
-        async function queryPrices() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const tableBody = document.getElementById('tableBody');
-            const dataTable = document.getElementById('dataTable');
-
-            if (!startDate || !endDate) {
-                alert('請選擇起始和結束日期');
-                return;
+                document.getElementById('startDate').valueAsDate = lastMonth;
+                document.getElementById('endDate').valueAsDate = today;
+                document.getElementById('inputDate').valueAsDate = today;
             }
 
-            if (new Date(startDate) > new Date(endDate)) {
-                alert('起始日期不能大於結束日期');
-                return;
+            // 格式化數字顯示
+            function formatNumber(num) {
+                return num ? num.toLocaleString() : '-';
             }
 
-            try {
-                const response = await fetch(`/api/prices/range?start=${startDate}&end=${endDate}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
+            // 查詢價格數據
+            async function queryPrices() {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const tableBody = document.getElementById('tableBody');
+                const dataTable = document.getElementById('dataTable');
 
-                // 清空表格內容
-                tableBody.innerHTML = '';
-
-                if (data.length === 0) {
-                    alert('查詢時間範圍內沒有資料');
-                    dataTable.style.display = 'none';
+                if (!startDate || !endDate) {
+                    alert('請選擇起始和結束日期');
                     return;
                 }
 
-                // 顯示表格並填充數據
-                dataTable.style.display = 'table';
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.date}</td>
-                        <td>${item.market || '-'}</td>
-                        <td>${item.product || '-'}</td>
-                        <td>${formatNumber(item.high_price)}</td>
-                        <td>${formatNumber(item.medium_price)}</td>
-                        <td>${formatNumber(item.low_price)}</td>
-                        <td>${formatNumber(item.average_price)}</td>
-                        <td>${formatNumber(item.trading_volume)}</td>
-                    `;
-                    tableBody.appendChild(row);
-                });
-            } catch (error) {
-                console.error('查詢錯誤:', error);
-                alert(`查詢出錯：${error.message}`);
-                dataTable.style.display = 'none';
-            }
-        }
-
-        // 提交表單數據
-        async function submitData() {
-            // 驗證所有必填欄位
-            const inputs = document.querySelectorAll('.form-group input');
-            for (let input of inputs) {
-                if (!input.value) {
-                    alert('請填寫所有必填欄位');
-                    input.focus();
+                if (new Date(startDate) > new Date(endDate)) {
+                    alert('起始日期不能大於結束日期');
                     return;
                 }
-            }
 
-            const formData = {
-                date: document.getElementById('inputDate').value,
-                market: document.getElementById('inputMarket').value,
-                product: document.getElementById('inputProduct').value,
-                high_price: parseFloat(document.getElementById('inputHighPrice').value),
-                medium_price: parseFloat(document.getElementById('inputMediumPrice').value),
-                low_price: parseFloat(document.getElementById('inputLowPrice').value),
-                average_price: parseFloat(document.getElementById('inputAveragePrice').value),
-                trading_volume: parseInt(document.getElementById('inputTradingVolume').value)
-            };
+                try {
+                    const response = await fetch(`/api/prices/range?start=${startDate}&end=${endDate}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
 
-            try {
-                const response = await fetch('/api/insert', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
+                    // 清空表格內容
+                    tableBody.innerHTML = '';
 
-                const result = await response.json();
+                    if (data.length === 0) {
+                        alert('查詢時間範圍內沒有資料');
+                        dataTable.style.display = 'none';
+                        return;
+                    }
 
-                if (response.ok) {
-                    alert('資料新增成功！');
-                    // 清空表單
-                    document.querySelectorAll('.form-group input').forEach(input => {
-                        if (input.type !== 'date') {
-                            input.value = '';
+                    // 顯示表格並填充數據
+                    dataTable.style.display = 'table';
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${item.date}</td>
+                            <td>${item.market || '-'}</td>
+                            <td>${item.product || '-'}</td>
+                            <td>${formatNumber(item.high_price)}</td>
+                            <td>${formatNumber(item.medium_price)}</td>
+                            <td>${formatNumber(item.low_price)}</td>
+                            <td>${formatNumber(item.average_price)}</td>
+                            <td>${formatNumber(item.trading_volume)}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+
+                    // 绘制图表
+                    const chartData = {
+                        labels: data.map(item => item.date),
+                        datasets: [{
+                            label: '平均價格趨勢',
+                            data: data.map(item => item.average_price),
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    };
+
+                    const ctx = document.getElementById('priceChart');
+                    if (window.priceLineChart) {
+                        window.priceLineChart.destroy();
+                    }
+                    window.priceLineChart = new Chart(ctx, {
+                        type: 'line',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: '草莓市場價格趨勢圖',
+                                    color: '#c0392b',
+                                    font: {
+                                        size: 16,
+                                        weight: 'bold'
+                                    },
+                                    padding: 20
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    title: {
+                                        display: true,
+                                        text: '平均價格'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: '日期'
+                                    }
+                                }
+                            }
                         }
                     });
-                    // 重新載入資料表格
-                    queryPrices();
-                } else {
-                    throw new Error(result.error || '資料新增失敗');
-                }
-            } catch (error) {
-                console.error('提交錯誤:', error);
-                alert(`提交失敗：${error.message}`);
-            }
-        }
 
-        // 頁面載入時初始化日期
-        window.onload = initializeDates;
-    </script>
-</body>
+                } catch (error) {
+                    console.error('查詢錯誤:', error);
+                    alert(`查詢出錯：${error.message}`);
+                    dataTable.style.display = 'none';
+                }
+            }
+
+            // 提交表單數據
+            async function submitData() {
+                // 驗證所有必填欄位
+                const inputs = document.querySelectorAll('.form-group input');
+                for (let input of inputs) {
+                    if (!input.value) {
+                        alert('請填寫所有必填欄位');
+                        input.focus();
+                        return;
+                    }
+                }
+
+                const formData = {
+                    date: document.getElementById('inputDate').value,
+                    market: document.getElementById('inputMarket').value,
+                    product: document.getElementById('inputProduct').value,
+                    high_price: parseFloat(document.getElementById('inputHighPrice').value),
+                    medium_price: parseFloat(document.getElementById('inputMediumPrice').value),
+                    low_price: parseFloat(document.getElementById('inputLowPrice').value),
+                    average_price: parseFloat(document.getElementById('inputAveragePrice').value),
+                    trading_volume: parseInt(document.getElementById('inputTradingVolume').value)
+                };
+
+                try {
+                    const response = await fetch('/api/insert', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        alert('資料新增成功！');
+                        // 清空表單
+                        document.querySelectorAll('.form-group input').forEach(input => {
+                            if (input.type !== 'date') {
+                                input.value = '';
+                            }
+                        });
+
+                        // 重新獲取數據並繪製圖表
+                        const chartResponse = await fetch('/api/prices/range?start=' + document.getElementById('startDate').value + '&end=' + document.getElementById('endDate').value);
+                        const chartData = await chartResponse.json();
+
+                        // 准备图表数据
+                        const chartConfig = {
+                            labels: chartData.map(item => item.date),
+                            datasets: [{
+                                label: '平均價格趨勢',
+                                data: chartData.map(item => item.average_price),
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1
+                            }]
+                        };
+
+                        // 绘制图表
+                        const ctx = document.getElementById('priceChart');
+                        if (window.priceLineChart) {
+                            window.priceLineChart.destroy();
+                        }
+                        window.priceLineChart = new Chart(ctx, {
+                            type: 'line',
+                            data: chartConfig,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: '草莓市場價格趨勢圖',
+                                        color: '#c0392b',
+                                        font: {
+                                            size: 16,
+                                            weight: 'bold'
+                                        },
+                                        padding: 20
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: false,
+                                        title: {
+                                            display: true,
+                                            text: '平均價格'
+                                        }
+                                    },
+                                    x: {
+                                        title: {
+                                            display: true,
+                                            text: '日期'
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        // 更新表格显示
+                        queryPrices();
+                    } else {
+                        throw new Error(result.error || '資料新增失敗');
+                    }
+                } catch (error) {
+                    console.error('提交錯誤:', error);
+                    alert(`提交失敗：${error.message}`);
+                }
+            }
+
+            // 頁面載入時初始化日期
+            window.onload = initializeDates;
+        </script>
+    </body>
 </html>
