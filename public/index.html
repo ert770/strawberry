@@ -4,8 +4,14 @@
     <title>市場價格查詢</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/stylesheets/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+    <!-- 加載動畫 -->
+    <div class="loader-container" id="loaderContainer">
+        <div class="loader"></div>
+    </div>
+
     <div class="container">
         <h1>草莓市價查詢系統</h1>
 
@@ -15,6 +21,12 @@
 
             <label for="endDate">結束日期：</label>
             <input type="date" id="endDate" class="date-input">
+
+            <label for="marketFilter">市場：</label>
+            <select id="marketFilter" class="market-filter">
+                <option value="">全部市場</option>
+                <!-- 市場選項將由JavaScript動態添加 -->
+            </select>
 
             <button onclick="queryPrices()" class="search-button">查詢</button>
         </div>
@@ -26,41 +38,49 @@
             <div class="form-group">
                 <label for="inputDate">日期：</label>
                 <input type="date" id="inputDate" required>
+                <div class="error-message" id="dateError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputMarket">市場：</label>
                 <input type="text" id="inputMarket" placeholder="請輸入市場名稱" required>
+                <div class="error-message" id="marketError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputProduct">產品：</label>
                 <input type="text" id="inputProduct" placeholder="請輸入產品名稱" required>
+                <div class="error-message" id="productError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputHighPrice">最高價：</label>
                 <input type="number" id="inputHighPrice" min="0" step="0.1" placeholder="請輸入最高價" required>
+                <div class="error-message" id="highPriceError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputMediumPrice">中間價：</label>
                 <input type="number" id="inputMediumPrice" min="0" step="0.1" placeholder="請輸入中間價" required>
+                <div class="error-message" id="mediumPriceError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputLowPrice">最低價：</label>
                 <input type="number" id="inputLowPrice" min="0" step="0.1" placeholder="請輸入最低價" required>
+                <div class="error-message" id="lowPriceError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputAveragePrice">平均價：</label>
                 <input type="number" id="inputAveragePrice" min="0" step="0.1" placeholder="請輸入平均價" required>
+                <div class="error-message" id="averagePriceError"></div>
             </div>
 
             <div class="form-group">
                 <label for="inputTradingVolume">交易量：</label>
                 <input type="number" id="inputTradingVolume" min="0" placeholder="請輸入交易量" required>
+                <div class="error-message" id="tradingVolumeError"></div>
             </div>
 
             <button onclick="submitData()" class="submit-button">提交資料</button>
@@ -68,32 +88,64 @@
     </div>
 
     <div class="container result-container" style="display: none;">
+        <!-- 價格統計摘要 -->
+        <div id="summaryContainer" class="summary-container" style="display: none;">
+            <div class="summary-title">價格統計摘要</div>
+            <div class="summary-item">
+                <span>全期間平均價：</span>
+                <span id="avgPrice"></span>
+            </div>
+            <div class="summary-item">
+                <span>最高價日期：</span>
+                <span id="highestDate"></span>
+            </div>
+            <div class="summary-item">
+                <span>最低價日期：</span>
+                <span id="lowestDate"></span>
+            </div>
+            <div class="summary-item">
+                <span>總交易量：</span>
+                <span id="totalVolume"></span>
+            </div>
+            <div class="trend-info" id="trendInfo"></div>
+        </div>
+
         <!-- 查詢結果表格和圖表 -->
         <div id="result">
             <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
                 <canvas id="priceChart"></canvas>
             </div>
-            <table id="dataTable" style="display: none;">
-                <thead>
-                <tr>
-                    <th>日期</th>
-                    <th>市場</th>
-                    <th>產品</th>
-                    <th>最高價</th>
-                    <th>中間價</th>
-                    <th>最低價</th>
-                    <th>平均價</th>
-                    <th>交易量</th>
-                </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
+            <div class="table-container">
+                <table id="dataTable" style="display: none;">
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>市場</th>
+                        <th>產品</th>
+                        <th>最高價</th>
+                        <th>中間價</th>
+                        <th>最低價</th>
+                        <th>平均價</th>
+                        <th>交易量</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <!-- 分頁 -->
+            <div id="pagination" class="pagination"></div>
         </div>
     </div>
 
     <!-- 引入 Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // 全局變量
+        let allData = [];
+        const PAGE_SIZE = 10; // 每頁顯示的記錄數
+        let currentPage = 1;
+        let availableMarkets = [];
+
         // 初始化日期選擇器
         function initializeDates() {
             const today = new Date();
@@ -103,6 +155,38 @@
             document.getElementById('startDate').valueAsDate = lastMonth;
             document.getElementById('endDate').valueAsDate = today;
             document.getElementById('inputDate').valueAsDate = today;
+
+            // 獲取可用市場列表
+            fetchAvailableMarkets();
+        }
+
+        // 獲取所有可用市場
+        async function fetchAvailableMarkets() {
+            showLoader();
+            try {
+                const response = await fetch('/api/prices');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                // 從數據中提取唯一的市場名稱
+                const markets = [...new Set(data.map(item => item.market))];
+                availableMarkets = markets;
+
+                // 更新市場選擇器
+                const marketFilter = document.getElementById('marketFilter');
+                markets.forEach(market => {
+                    const option = document.createElement('option');
+                    option.value = market;
+                    option.textContent = market;
+                    marketFilter.appendChild(option);
+                });
+            } catch (error) {
+                console.error('獲取市場列表錯誤:', error);
+            } finally {
+                hideLoader();
+            }
         }
 
         // 格式化數字顯示
@@ -110,10 +194,194 @@
             return num ? num.toLocaleString() : '-';
         }
 
+        // 顯示加載動畫
+        function showLoader() {
+            document.getElementById('loaderContainer').style.display = 'flex';
+        }
+
+        // 隱藏加載動畫
+        function hideLoader() {
+            document.getElementById('loaderContainer').style.display = 'none';
+        }
+
+        // 顯示錯誤提示
+        function showError(fieldId, message) {
+            const field = document.getElementById(fieldId);
+            const errorElement = document.getElementById(fieldId + 'Error');
+            field.classList.add('error');
+            errorElement.textContent = message;
+        }
+
+        // 清除錯誤提示
+        function clearErrors() {
+            const errorElements = document.querySelectorAll('.error-message');
+            const inputFields = document.querySelectorAll('.form-group input');
+            errorElements.forEach(el => el.textContent = '');
+            inputFields.forEach(field => field.classList.remove('error'));
+        }
+
+        // 計算價格趨勢
+        function calculateTrend(data) {
+            if (data.length < 3) return '';
+
+            // 取最近5筆或資料總數的一半(取較小值)作為最近趨勢
+            const recentCount = Math.min(5, Math.floor(data.length / 2));
+            const recentData = data.slice(-recentCount);
+
+            // 計算趨勢
+            let upCount = 0;
+            let downCount = 0;
+
+            for (let i = 1; i < recentData.length; i++) {
+                if (recentData[i].average_price > recentData[i-1].average_price) {
+                    upCount++;
+                } else if (recentData[i].average_price < recentData[i-1].average_price) {
+                    downCount++;
+                }
+            }
+
+            // 判斷趨勢
+            if (upCount > downCount && upCount >= recentCount / 2) {
+                return '<span class="trend-up">價格上升趨勢 📈</span>';
+            } else if (downCount > upCount && downCount >= recentCount / 2) {
+                return '<span class="trend-down">價格下降趨勢 📉</span>';
+            }
+
+            // 判斷交易量趨勢
+            const avgRecentVolume = recentData.reduce((sum, item) => sum + item.trading_volume, 0) / recentData.length;
+            const avgTotalVolume = data.reduce((sum, item) => sum + item.trading_volume, 0) / data.length;
+
+            if (avgRecentVolume < avgTotalVolume * 0.7) {
+                return '<span class="trend-down">近期交易量低落 📉</span>';
+            } else if (avgRecentVolume > avgTotalVolume * 1.3) {
+                return '<span class="trend-up">近期交易量增加 📈</span>';
+            }
+
+            return '價格趨勢穩定';
+        }
+
+        // 顯示價格統計摘要
+        function showPriceSummary(data) {
+            if (!data || data.length === 0) {
+                document.getElementById('summaryContainer').style.display = 'none';
+                return;
+            }
+
+            // 排序數據按日期
+            data.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // 計算平均價格
+            const totalPrice = data.reduce((sum, item) => sum + item.average_price, 0);
+            const avgPrice = totalPrice / data.length;
+
+            // 找出最高價和最低價的日期
+            const highestPriceItem = [...data].sort((a, b) => b.average_price - a.average_price)[0];
+            const lowestPriceItem = [...data].sort((a, b) => a.average_price - b.average_price)[0];
+
+            // 計算總交易量
+            const totalVolume = data.reduce((sum, item) => sum + item.trading_volume, 0);
+
+            // 更新DOM
+            document.getElementById('avgPrice').textContent = formatNumber(avgPrice.toFixed(2));
+            document.getElementById('highestDate').textContent = `${highestPriceItem.date} (${formatNumber(highestPriceItem.average_price)})`;
+            document.getElementById('lowestDate').textContent = `${lowestPriceItem.date} (${formatNumber(lowestPriceItem.average_price)})`;
+            document.getElementById('totalVolume').textContent = formatNumber(totalVolume);
+            document.getElementById('trendInfo').innerHTML = calculateTrend(data);
+
+            document.getElementById('summaryContainer').style.display = 'block';
+        }
+
+        // 創建分頁
+        function createPagination(totalItems) {
+            const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+            const paginationElement = document.getElementById('pagination');
+            paginationElement.innerHTML = '';
+
+            if (totalPages <= 1) {
+                return;
+            }
+
+            // 上一頁按鈕
+            const prevButton = document.createElement('button');
+            prevButton.textContent = '上一頁';
+            prevButton.disabled = currentPage === 1;
+            prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderTablePage();
+                }
+            });
+            paginationElement.appendChild(prevButton);
+
+            // 頁碼按鈕
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.textContent = i;
+                pageButton.className = i === currentPage ? 'active' : '';
+                pageButton.addEventListener('click', () => {
+                    currentPage = i;
+                    renderTablePage();
+                });
+                paginationElement.appendChild(pageButton);
+            }
+
+            // 下一頁按鈕
+            const nextButton = document.createElement('button');
+            nextButton.textContent = '下一頁';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderTablePage();
+                }
+            });
+            paginationElement.appendChild(nextButton);
+        }
+
+        // 渲染當前頁表格數據
+        function renderTablePage() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+
+            // 計算當前頁的數據範圍
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = Math.min(start + PAGE_SIZE, allData.length);
+            const currentPageData = allData.slice(start, end);
+
+            // 填充表格
+            currentPageData.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.date}</td>
+                    <td>${item.market || '-'}</td>
+                    <td>${item.product || '-'}</td>
+                    <td>${formatNumber(item.high_price)}</td>
+                    <td>${formatNumber(item.medium_price)}</td>
+                    <td>${formatNumber(item.low_price)}</td>
+                    <td>${formatNumber(item.average_price)}</td>
+                    <td>${formatNumber(item.trading_volume)}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // 更新分頁按鈕狀態
+            const buttons = document.querySelectorAll('.pagination button');
+            if (buttons.length > 0) {
+                buttons[0].disabled = currentPage === 1; // 上一頁按鈕
+                buttons[buttons.length - 1].disabled = currentPage === Math.ceil(allData.length / PAGE_SIZE); // 下一頁按鈕
+
+                // 更新活動頁按鈕樣式
+                document.querySelectorAll('.pagination button:not(:first-child):not(:last-child)').forEach((button, index) => {
+                    button.className = index + 1 === currentPage ? 'active' : '';
+                });
+            }
+        }
+
         // 查詢價格數據
         async function queryPrices() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
+            const marketFilter = document.getElementById('marketFilter').value;
             const tableBody = document.getElementById('tableBody');
             const dataTable = document.getElementById('dataTable');
             const resultContainer = document.querySelector('.result-container');
@@ -128,6 +396,7 @@
                 return;
             }
 
+            showLoader();
             try {
                 const response = await fetch(`/api/prices/range?start=${startDate}&end=${endDate}`);
                 if (!response.ok) {
@@ -145,31 +414,47 @@
                     return;
                 }
 
-                // 顯示結果容器和表格並填充數據
+                // 應用市場過濾
+                let filteredData = data;
+                if (marketFilter) {
+                    filteredData = data.filter(item => item.market === marketFilter);
+                }
+
+                if (filteredData.length === 0) {
+                    alert('所選市場在查詢時間範圍內沒有資料');
+                    dataTable.style.display = 'none';
+                    resultContainer.style.display = 'none';
+                    return;
+                }
+
+                // 儲存所有數據用於分頁
+                allData = filteredData;
+                currentPage = 1;
+
+                // 顯示結果容器和表格
                 resultContainer.style.display = 'block';
                 dataTable.style.display = 'table';
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.date}</td>
-                        <td>${item.market || '-'}</td>
-                        <td>${item.product || '-'}</td>
-                        <td>${formatNumber(item.high_price)}</td>
-                        <td>${formatNumber(item.medium_price)}</td>
-                        <td>${formatNumber(item.low_price)}</td>
-                        <td>${formatNumber(item.average_price)}</td>
-                        <td>${formatNumber(item.trading_volume)}</td>
-                    `;
-                    tableBody.appendChild(row);
-                });
+
+                // 創建分頁並渲染第一頁
+                createPagination(filteredData.length);
+                renderTablePage();
+
+                // 顯示價格統計摘要
+                showPriceSummary(filteredData);
 
                 // 绘制图表
                 const chartData = {
-                    labels: data.map(item => item.date),
+                    labels: filteredData.map(item => item.date),
                     datasets: [{
                         label: '平均價格趨勢',
-                        data: data.map(item => item.average_price),
+                        data: filteredData.map(item => item.average_price),
                         borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: '交易量',
+                        data: filteredData.map(item => item.trading_volume / 20), // 縮放以便同圖顯示
+                        borderColor: 'rgb(153, 102, 255)',
+                        borderDash: [5, 5],
                         tension: 0.1
                     }]
                 };
@@ -218,19 +503,58 @@
                 console.error('查詢錯誤:', error);
                 alert(`查詢出錯：${error.message}`);
                 dataTable.style.display = 'none';
+            } finally {
+                hideLoader();
             }
+        }
+
+        // 驗證價格的合理性
+        function validatePrices() {
+            const highPrice = parseFloat(document.getElementById('inputHighPrice').value);
+            const mediumPrice = parseFloat(document.getElementById('inputMediumPrice').value);
+            const lowPrice = parseFloat(document.getElementById('inputLowPrice').value);
+            let isValid = true;
+
+            // 清除先前的錯誤提示
+            clearErrors();
+
+            // 驗證高價 >= 中價 >= 低價
+            if (highPrice < mediumPrice) {
+                showError('inputHighPrice', '最高價不能小於中間價');
+                isValid = false;
+            }
+
+            if (mediumPrice < lowPrice) {
+                showError('inputMediumPrice', '中間價不能小於最低價');
+                isValid = false;
+            }
+
+            return isValid;
         }
 
         // 提交表單數據
         async function submitData() {
+            // 清除先前的錯誤提示
+            clearErrors();
+
             // 驗證所有必填欄位
             const inputs = document.querySelectorAll('.form-group input');
+            let isValid = true;
+
             for (let input of inputs) {
                 if (!input.value) {
-                    alert('請填寫所有必填欄位');
-                    input.focus();
-                    return;
+                    showError(input.id, '此欄位為必填');
+                    isValid = false;
                 }
+            }
+
+            // 驗證價格合理性
+            if (isValid && !validatePrices()) {
+                isValid = false;
+            }
+
+            if (!isValid) {
+                return;
             }
 
             const formData = {
@@ -244,6 +568,7 @@
                 trading_volume: parseInt(document.getElementById('inputTradingVolume').value)
             };
 
+            showLoader();
             try {
                 const response = await fetch('/api/insert', {
                     method: 'POST',
@@ -264,70 +589,19 @@
                         }
                     });
 
-                    // 重新獲取數據並繪製圖表
-                    const chartResponse = await fetch('/api/prices/range?start=' + document.getElementById('startDate').value + '&end=' + document.getElementById('endDate').value);
-                    const chartData = await chartResponse.json();
+                    // 聚焦第一個輸入框
+                    document.getElementById('inputMarket').focus();
 
-                    // 准备图表数据
-                    const chartConfig = {
-                        labels: chartData.map(item => item.date),
-                        datasets: [{
-                            label: '平均價格趨勢',
-                            data: chartData.map(item => item.average_price),
-                            borderColor: 'rgb(75, 192, 192)',
-                            tension: 0.1
-                        }]
-                    };
-
-                    // 绘制图表
-                    const ctx = document.getElementById('priceChart');
-                    if (window.priceLineChart) {
-                        window.priceLineChart.destroy();
-                    }
-                    window.priceLineChart = new Chart(ctx, {
-                        type: 'line',
-                        data: chartConfig,
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                title: {
-                                    display: true,
-                                    text: '草莓市場價格趨勢圖',
-                                    color: '#c0392b',
-                                    font: {
-                                        size: 16,
-                                        weight: 'bold'
-                                    },
-                                    padding: 20
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: false,
-                                    title: {
-                                        display: true,
-                                        text: '平均價格'
-                                    }
-                                },
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: '日期'
-                                    }
-                                }
-                            }
-                        }
-                    });
-
-                    // 更新表格显示
-                    queryPrices();
+                    // 重新查詢並更新數據
+                    await queryPrices();
                 } else {
                     throw new Error(result.error || '資料新增失敗');
                 }
             } catch (error) {
                 console.error('提交錯誤:', error);
                 alert(`提交失敗：${error.message}`);
+            } finally {
+                hideLoader();
             }
         }
 

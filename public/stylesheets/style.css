@@ -43,7 +43,8 @@ label {
 
 input[type="text"],
 input[type="date"],
-input[type="number"] {
+input[type="number"],
+select {
   padding: 8px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
@@ -83,3 +84,134 @@ table th {
   background-color: #e74c3c;
   color: white;
 }
+
+/* 新增錯誤提示樣式 */
+.error {
+  border: 2px solid #e74c3c !important;
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+/* 加載動畫樣式 */
+.loader-container {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #c0392b;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 統計摘要樣式 */
+.summary-container {
+  background-color: #f8f3f1;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #c0392b;
+}
+
+.summary-title {
+  font-weight: bold;
+  color: #c0392b;
+  margin-bottom: 10px;
+}
+
+.summary-item {
+  margin: 5px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.trend-info {
+  background-color: #e8fcf5;
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 15px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.trend-up {
+  color: #27ae60;
+}
+
+.trend-down {
+  color: #e74c3c;
+}
+
+/* 分頁樣式 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.pagination button {
+  padding: 5px 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pagination button.active {
+  background-color: #c0392b;
+  color: white;
+  border-color: #c0392b;
+}
+
+.pagination button:disabled {
+  background-color: #f1f1f1;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* 響應式設計 */
+@media screen and (max-width: 768px) {
+  .container {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .form-group {
+    flex: 1 1 100%;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  .summary-item {
+    flex-direction: column;
+  }
+}
+
